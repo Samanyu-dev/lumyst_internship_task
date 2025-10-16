@@ -1,0 +1,156 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Codebase Graph Viewer</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
+    html,body{height:100%;margin:0}
+    #app{display:flex;height:100%;width:100%}
+    #left{width:280px;background:#0f172a;color:#e6eef8;padding:12px;box-sizing:border-box;overflow:auto}
+    #cy{flex:1;position:relative}
+    .control{margin-bottom:10px}
+    input[type="search"]{width:100%;padding:6px;border-radius:6px;border:1px solid #334155}
+    button{padding:6px 10px;margin:4px;border-radius:6px;background:#2563eb;color:white;border:0;cursor:pointer}
+    .meta{font-size:12px;color:#9ca3af;margin-top:8px}
+    .node-label{font-size:12px}
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div id="left">
+      <h3>Code Graph Viewer</h3>
+      <div class="control">
+        <input id="q" type="search" placeholder="Search node id or label"/>
+      </div>
+      <div class="control">
+        <button id="fit">Fit</button>
+        <button id="layout">Relayout</button>
+        <button id="collapseAll">Collapse Files</button>
+        <button id="expandAll">Expand Files</button>
+      </div>
+      <div class="control">
+        <label class="meta">Click node to center. Ctrl+click to toggle visibility of its siblings.</label>
+      </div>
+      <div id="info" class="meta"></div>
+    </div>
+    <div id="cy"></div>
+  </div>
+
+  <script src="https://unpkg.com/cytoscape@3.23.0/dist/cytoscape.min.js"></script>
+  <script src="https://unpkg.com/cytoscape-cose-bilkent@4.2.0/cytoscape-cose-bilkent.js"></script>
+  <script>
+    const cyEl = document.getElementById('cy');
+    const infoEl = document.getElementById('info');
+    const dataPath = 'core/test-output.json';
+
+    async function loadData() {
+      const r = await fetch(dataPath);
+      if (!r.ok) throw new Error('Failed to load ' + dataPath);
+      const json = await r.json();
+      return json;
+    }
+
+    function buildElements(json) {
+      const nodes = json.rfNodes || [];
+      const edges = json.rfEdges || [];
+      // Group nodes by file (id format: code:<file>:<symbol>:<line>)
+      const fileMap = new Map();
+      nodes.forEach(n => {
+        const parts = (n.id || '').split(':');
+        const file = parts[1] || 'unknown';
+        if (!fileMap.has(file)) fileMap.set(file, []);
+        fileMap.get(file).push(n);
+      });
+
+      const elements = [];
+      // create parent nodes for files (compound)
+      for (const [file, list] of fileMap.entries()) {
+        const parentId = 'file::' + file;
+        elements.push({ data: { id: parentId, label: file, isParent: true } , classes: 'parent' });
+        for (const n of list) {
+          elements.push({
+            data: {
+              id: n.id,
+              label: n.data?.label || n.id,
+              parent: parentId,
+              width: 160,
+              height: 40
+            }
+          });
+        }
+      }
+      // edges
+      for (const e of edges) {
+        elements.push({ data: { id: e.id || e.source + '->' + e.target, source: e.source, target: e.target, label: e.label } });
+      }
+      return elements;
+    }
+
+    function initCy(elements) {
+      const cy = cytoscape({
+        container: cyEl,
+        elements,
+        style: [
+          { selector: 'node', style: { 'background-color': '#60a5fa', 'label': 'data(label)', 'text-valign':'center','text-halign':'center','font-size':'10px','color':'#042a2b', 'width':'data(width)','height':'data(height)','overlay-padding':'6px'} },
+          { selector: 'node[parent]', style: { 'background-opacity': 0.06, 'border-opacity': 1, 'border-width': 1, 'border-color': '#94a3b8', 'label': 'data(label)', 'font-size':'11px', 'text-valign':'top','text-margin-y':'4px' }},
+          { selector: 'node.isParent', style: { 'shape':'roundrectangle', 'background-color':'#0f172a', 'color':'#e2e8f0', 'font-weight':'700' } },
+          { selector: 'edge', style: { 'width': 1, 'line-color': '#94a3b8', 'curve-style': 'bezier', 'target-arrow-shape': 'none', 'label': 'data(label)', 'font-size':'8px', 'text-rotation':'autorotate', 'text-margin-y':-6 } },
+          { selector: '.highlight', style: { 'background-color':'#f97316', 'line-color':'#f97316' } },
+          { selector: '.fade', style: { 'opacity': 0.12 } }
+        ],
+        layout: { name: 'cose-bilkent', fit: true, randomize: false, nodeDimensionsIncludeLabels: true, gravity: 1 },
+        wheelSensitivity: 0.2,
+      });
+
+      // add basic interactions
+      cy.on('tap', 'node', (evt) => {
+        const node = evt.target;
+        if (node.data('isParent')) return;
+        cy.elements().removeClass('highlight');
+        node.addClass('highlight');
+        cy.animate({ center: { eles: node }, duration: 300 });
+        infoEl.textContent = `Selected: ${node.id()} (${node.data('label')})`;
+      });
+
+      document.getElementById('fit').addEventListener('click', () => cy.fit(30));
+      document.getElementById('layout').addEventListener('click', () => {
+        cy.layout({ name: 'cose-bilkent', randomize: false, nodeDimensionsIncludeLabels: true }).run();
+      });
+
+      document.getElementById('collapseAll').addEventListener('click', () => {
+        cy.nodes('[parent]').forEach(p => {
+          p.children().forEach(n => n.hide());
+        });
+      });
+      document.getElementById('expandAll').addEventListener('click', () => {
+        cy.nodes('[parent]').forEach(p => {
+          p.children().forEach(n => n.show());
+        });
+      });
+
+      document.getElementById('q').addEventListener('input', (ev) => {
+        const v = ev.target.value.trim().toLowerCase();
+        if (!v) { cy.elements().removeClass('fade'); return; }
+        cy.elements().forEach(el => {
+          const text = (el.data('label') || el.id() || '').toString().toLowerCase();
+          if (text.includes(v)) el.removeClass('fade'); else el.addClass('fade');
+        });
+      });
+
+      return cy;
+    }
+
+    (async function() {
+      try {
+        const json = await loadData();
+        const el = buildElements(json);
+        initCy(el);
+      } catch (err) {
+        cyEl.innerHTML = '<div style="color:#fca5a5;padding:12px">Failed to load data: ' + err.message + '</div>';
+        console.error(err);
+      }
+    })();
+  </script>
+</body>
+</html>

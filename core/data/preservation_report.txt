@@ -1,0 +1,7 @@
+Input nodes: 291
+Output JSON rows: 291
+Output CSV rows: 291
+
+No missing IDs in ranked_functions.json
+
+No missing IDs in ranked_functions_scores.csv
