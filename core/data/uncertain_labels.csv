@@ -1,0 +1,10 @@
+id,label,importance,triviality,loc,complexity,num_funcs,num_params,num_calls,num_returns,num_assigns,num_imports,doc_len,keyword_matches,one_liner,has_type_annotations,dist_med,human_label
+code:fastapi/openapi/models.py:MediaType:251,MediaType,0.335,0.665,4,1.0,0,0,1,0,0,0,0,1,0,1,0.0017,
+code:fastapi/security/http.py:HTTPBasicCredentials:15,HTTPBasicCredentials,0.3354,0.6646,8,1.0,0,0,1,0,0,0,0,1,0,1,0.0020999999999999,
+code:fastapi/openapi/models.py:ParameterInType:236,ParameterInType,0.3355,0.6645,4,1.0,0,0,0,0,3,0,0,0,0,1,0.0022,
+code:fastapi/openapi/models.py:SecuritySchemeType:336,SecuritySchemeType,0.3355,0.6645,4,1.0,0,0,0,0,3,0,0,0,0,1,0.0022,
+code:fastapi/params.py:ParamTypes:17,ParamTypes,0.3355,0.6645,4,1.0,0,0,0,0,3,0,0,0,0,1,0.0022,
+code:fastapi/openapi/models.py:OAuthFlows:392,OAuthFlows,0.3355,0.6645,4,1.0,0,0,0,0,0,0,0,0,0,1,0.0022,
+code:fastapi/openapi/models.py:OpenIdConnect:404,OpenIdConnect,0.3356,0.6644,4,1.0,0,0,1,0,0,0,0,0,0,1,0.0023,
+code:fastapi/exceptions.py:ValidationException:148,ValidationException,0.3304,0.6696,4,0.0,0,0,0,0,0,0,0,0,0,1,0.0028999999999999,
+code:fastapi/responses.py:render:43,render,0.3304,0.6696,4,0.0,0,0,0,0,0,0,0,0,0,1,0.0028999999999999,
